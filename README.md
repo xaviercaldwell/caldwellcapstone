@@ -2,6 +2,8 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+password for xaviercaldwell@u.boisestate.edu via SupaBase is BIPPITYB0PPITY!
+
 First, run the development server:
 
 ```bash
