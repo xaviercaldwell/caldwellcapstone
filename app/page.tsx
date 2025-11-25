@@ -29,30 +29,12 @@ export default function Home() {
               href="_blank"
               className="font-medium text-zinc-950 dark:text-zinc-50"
             >
-              view
+              sign up
             </a>{" "}
-            as a guest.
+            with an email
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium items-top sm:flex-row my-20">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="/login"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            
-            Login
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="/dashboard"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            View
-          </a>
-        </div>
+        
       </main>
     </div>
   );
