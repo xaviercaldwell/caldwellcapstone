@@ -4,29 +4,36 @@ import Link from "next/link";
 
 import { useState, useEffect } from "react";
 
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/utils/supabase/client";
 
 export default function Navbar() {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    const session = supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null);
-    });
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null);
-      }
-    );
+  supabase.auth.getSession().then(({ data }) => {
+    setUser(data.session?.user ?? null);
+  });
 
-    return () => {
-      listener.subscription.unsubscribe();
-    };
-  }, []);
+  const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    setUser(session?.user ?? null);
+  });
+
+  return () => {
+    listener.subscription.unsubscribe();
+  };
+}, []);
+
 
   async function handleLogout() {
-    await supabase.auth.signOut();
+  const { error } = await supabase.auth.signOut();
+  if (error) {
+    console.error("Logout failed:", error.message);
+  } else {
+    setUser(null);           // immediately update UI cause why wouldnt it before
+    window.location.href = "/"; // redirect to home page
   }
+}
+
 
   return (
     <nav className="w-full bg-gray-900 text-white px-6 py-4 flex justify-between items-center">

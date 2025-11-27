@@ -2,142 +2,131 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/utils/supabase/client";
 
 interface Item {
   id: number;
   description: string | null;
-  created_at: Date;
-  updated_at: Date | null;
+  created_at: string;
+  updated_at: string | null;
 }
 
 export default function DashboardPage() {
   const router = useRouter();
+  const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [items, setItems] = useState<Item[]>([]);
   const [newDescription, setNewDescription] = useState("");
   const [posting, setPosting] = useState(false);
 
+  // ----------------------
+  // AUTH CHECK
+  // ----------------------
   useEffect(() => {
-    const session = supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) router.push("/login");
-      else {
-        setUserEmail(session.user.email ?? null);
-        setLoading(false);
+    let mounted = true;
+
+    const checkSession = async () => {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (!mounted) return;
+
+      if (error) {
+        console.error("Error fetching session:", error);
+        router.push("/login");
+        return;
       }
+
+      if (!session) {
+        router.push("/login");
+        return;
+      }
+
+      setUserEmail(session.user?.email ?? null);
+      setLoading(false);
+    };
+
+    checkSession();
+
+    // Listen for auth changes
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) setUserEmail(session.user?.email ?? null);
+      else router.push("/login");
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (!session) router.push("/login");
-      }
-    );
-
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
   }, [router]);
 
-  async function fetchItems() {
+  // ----------------------
+  // FETCH ITEMS
+  // ----------------------
+  const fetchItems = async () => {
+    setLoading(true);
     try {
-      const res = await fetch("/api/testdb");
-      const data = await res.json();
-      if (data.success) setItems(data.data);
-    } catch (err) {
-      console.error("Failed to fetch items:", err);
+      const { data, error } = await supabase
+        .from("items")
+        .select("*")
+        .order("id", { ascending: true });
+
+      if (error) throw error;
+
+      setItems(
+        data.map((it) => ({
+          ...it,
+          created_at: it.created_at,
+          updated_at: it.updated_at,
+        }))
+      );
+    } catch (error) {
+      console.error("Failed to fetch items:", error);
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchItems().finally(() => setLoading(false));
-  }, []);
-// --- NEW handle add
-  async function handleAddItem(e: React.FormEvent) {
+    if (userEmail) fetchItems();
+  }, [userEmail]);
+
+  // ----------------------
+  // ADD ITEM
+  // ----------------------
+  const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDescription.trim()) return;
 
     setPosting(true);
     try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
+      const { error } = await supabase
+        .from("items")
+        .insert({ description: newDescription });
 
-      if (!token) {
-        console.error("No session token found, cannot post.");
-        setPosting(false);
-        return;
-      }
-//post request with auth 
-      const res = await fetch("/api/testdb", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`, // THIS IS WHERE IT GOES
-        },
-        body: JSON.stringify({ description: newDescription }),
-      });
+      if (error) throw error;
 
-      let data;
-      try {
-        data = await res.json();
-      } catch (err) {
-        console.error(
-          "Failed to parse JSON from POST response. Likely network/database issue.",
-          err
-        );
-        setPosting(false);
-        return;
-      }
-
-      if (data.success) {
-        setNewDescription("");
-        fetchItems();
-      } else {
-        console.error("POST error:", data.error);
-      }
-    } catch (err) {
-      console.error("POST request failed:", err);
+      setNewDescription("");
+      fetchItems();
+    } catch (error) {
+      console.error("Failed to add item:", error);
     } finally {
       setPosting(false);
     }
-  }
+  };
 
-  // --- NEW handle DELETE ---
-  async function handleDeleteItem(id: number) {
+  // ----------------------
+  // DELETE ITEM
+  // ----------------------
+  const handleDeleteItem = async (id: number) => {
     if (!confirm("Are you sure you want to delete this item?")) return;
 
     try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
-      if (!token) {
-        console.error("No session token found, cannot delete.");
-        return;
-      }
-
-      const res = await fetch("/api/testdb", {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ id }),
-      });
-
-      let data;
-      try {
-        data = await res.json();
-      } catch (err) {
-        console.error("Failed to parse JSON from DELETE response.", err);
-        return;
-      }
-
-      if (data.success) {
-        fetchItems(); // refresh table
-      } else {
-        console.error("DELETE error:", data.error);
-      }
-    } catch (err) {
-      console.error("DELETE request failed:", err);
+      const { error } = await supabase.from("items").delete().eq("id", id);
+      if (error) throw error;
+      fetchItems();
+    } catch (error) {
+      console.error("Failed to delete item:", error);
     }
-  }
+  };
 
   if (loading) return <p>Loading...</p>;
   if (!userEmail) return <p>Redirecting to login...</p>;
@@ -153,10 +142,7 @@ export default function DashboardPage() {
             Welcome, {userEmail}!
           </p>
 
-          {/* --- ADD NEW ITEM --- */}
-          <h2 className="text-2xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            New Item Input
-          </h2>
+          {/* ADD ITEM */}
           <form onSubmit={handleAddItem} className="w-full flex gap-2">
             <input
               className="flex-1 border px-3 py-2 rounded text-black dark:text-white placeholder-gray-400"
@@ -167,52 +153,31 @@ export default function DashboardPage() {
             <button
               type="submit"
               disabled={posting}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors cursor-pointer disabled:opacity-50"
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
             >
               {posting ? "Adding..." : "Add"}
             </button>
           </form>
 
-          {/* --- ITEMs  --- */}
+          {/* ITEMS TABLE */}
           <div className="w-full overflow-x-auto mt-4">
             <table className="w-full border-collapse border border-gray-300 dark:border-zinc-700 text-left">
               <thead className="bg-zinc-100 dark:bg-zinc-900">
                 <tr>
-                  <th className="border p-3 text-zinc-900 dark:text-zinc-50">
-                ID
-                  </th>
-                  <th className="border p-3 text-zinc-900 dark:text-zinc-50">
-                    Description
-                  </th>
-                  <th className="border p-3 text-zinc-900 dark:text-zinc-50">
-                    Created At
-                  </th>
-                  <th className="border p-3 text-zinc-900 dark:text-zinc-50">
-                    Updated At
-                  </th>
-                  <th className="border p-3 text-zinc-900 dark:text-zinc-50">
-                    Actions
-                  </th>
+                  <th className="border p-3 text-zinc-900 dark:text-zinc-50">ID</th>
+                  <th className="border p-3 text-zinc-900 dark:text-zinc-50">Description</th>
+                  <th className="border p-3 text-zinc-900 dark:text-zinc-50">Created At</th>
+                  <th className="border p-3 text-zinc-900 dark:text-zinc-50">Updated At</th>
+                  <th className="border p-3 text-zinc-900 dark:text-zinc-50">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                  >
-                    <td className="border p-3 text-zinc-800 dark:text-zinc-200">
-                      {item.id}
-                    </td>
-                    <td className="border p-3 text-zinc-800 dark:text-zinc-200">
-                      {item.description ?? "-"}
-                    </td>
-                    <td className="border p-3 text-zinc-800 dark:text-zinc-200">
-                      {item.created_at.toLocaleString()}
-                    </td>
-                    <td className="border p-3 text-zinc-800 dark:text-zinc-200">
-                      {item.updated_at ? item.updated_at.toLocaleString() : "-"}
-                    </td>
+                  <tr key={item.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800">
+                    <td className="border p-3 text-zinc-800 dark:text-zinc-200">{item.id}</td>
+                    <td className="border p-3 text-zinc-800 dark:text-zinc-200">{item.description ?? "-"}</td>
+                    <td className="border p-3 text-zinc-800 dark:text-zinc-200">{new Date(item.created_at).toLocaleString()}</td>
+                    <td className="border p-3 text-zinc-800 dark:text-zinc-200">{item.updated_at ? new Date(item.updated_at).toLocaleString() : "-"}</td>
                     <td className="border p-3 text-zinc-800 dark:text-zinc-200">
                       <button
                         onClick={() => handleDeleteItem(item.id)}

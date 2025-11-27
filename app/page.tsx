@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { supabase } from "@/utils/supabase/client";
 
 interface Item {
   id: number;
@@ -13,31 +14,24 @@ export default function Home() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchItems() {
-      try {
-        const res = await fetch("/api/testdb");
-        const data = await res.json();
-        if (data.success) {
-          // Convert date strings → Date objects
-          const normalized = data.data.map((it: any) => ({
-            ...it,
-            created_at: new Date(it.created_at),
-            updated_at: it.updated_at ? new Date(it.updated_at) : null,
-          }));
-          setItems(normalized);
-        } else {
-          console.error(data.error);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchItems();
-  }, []);
+ useEffect(() => {
+  async function fetchItems() {
+    const { data, error } = await supabase
+      .from("items")
+      .select("*")
+      .order("id", { ascending: true });
+    if (error) console.error(error);
+    else setItems(
+      data.map((it) => ({
+        ...it,
+        created_at: new Date(it.created_at),
+        updated_at: it.updated_at ? new Date(it.updated_at) : null,
+      }))
+    );
+    setLoading(false);
+  }
+  fetchItems();
+}, []);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
