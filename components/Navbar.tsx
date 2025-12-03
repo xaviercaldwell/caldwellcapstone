@@ -41,7 +41,6 @@ export default function Navbar() {
 
       <div className="space-x-4">
 
-        {/* Login status text */}
         {user === undefined ? (
           <span className="text-gray-400">Loading...</span>
         ) : user ? (

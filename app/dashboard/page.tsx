@@ -114,8 +114,8 @@ export default function DashboardPage() {
   };
 
   // ----------------------
-  // DELETE ITEM
-  // ----------------------
+  // DELETE ITEM HANDLE
+  // ------------------------
   const handleDeleteItem = async (id: number) => {
     if (!confirm("Are you sure you want to delete this item?")) return;
 
