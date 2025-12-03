@@ -1,57 +1,100 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+import { supabase } from "@/utils/supabase/client";
+
+interface Item {
+  id: number;
+  description: string | null;
+  created_at: Date;
+  updated_at: Date | null;
+}
 
 export default function Home() {
+  const [items, setItems] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(true);
+
+ useEffect(() => {
+  async function fetchItems() {
+    const { data, error } = await supabase
+      .from("items")
+      .select("*")
+      .order("id", { ascending: true });
+    if (error) console.error(error);
+    else setItems(
+      data.map((it) => ({
+        ...it,
+        created_at: new Date(it.created_at),
+        updated_at: it.updated_at ? new Date(it.updated_at) : null,
+      }))
+    );
+    setLoading(false);
+  }
+  fetchItems();
+}, []);
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
+      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-start py-32 px-16 bg-white dark:bg-black sm:items-start">
+        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left w-full">
           <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
             Welcome to my capstone project!
           </h1>
+
           <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
             This prototype web app is meant to demonstrate proficiency in my
             three areas of study: Software development, cybersecurity, and
-            project management. This application blends facets of each of these
-            disciplines to show the strength of interdisciplinary learning and
-            how these skills complement one another.
+            project management.
           </p>
 
           <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
             To get started,{" "}
-            <a
-              href="_blank"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Login
+            <a href="/login" className="font-medium text-zinc-950 dark:text-zinc-50">
+              login
             </a>{" "}
             or{" "}
-            <a
-              href="_blank"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              view
+            <a href="/signup" className="font-medium text-zinc-950 dark:text-zinc-50">
+              sign up
             </a>{" "}
-            as a guest.
+            with an email.
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium items-top sm:flex-row my-20">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="/login"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            
-            Login
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="/dashboard"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            View
-          </a>
+
+          <h2 className="text-2xl font-semibold mt-10 text-black dark:text-zinc-50">
+            Public Items
+          </h2>
+
+          {loading ? (
+            <p className="text-zinc-600 dark:text-zinc-400">Loading items...</p>
+          ) : (
+            <div className="w-full overflow-x-auto mt-4">
+              <table className="w-full border-collapse border border-gray-300 dark:border-zinc-700 text-left">
+                <thead className="bg-zinc-100 dark:bg-zinc-900">
+                  <tr>
+                    <th className="border p-3 text-zinc-900 dark:text-zinc-50">ID</th>
+                    <th className="border p-3 text-zinc-900 dark:text-zinc-50">Description</th>
+                    <th className="border p-3 text-zinc-900 dark:text-zinc-50">Created At</th>
+                    <th className="border p-3 text-zinc-900 dark:text-zinc-50">Updated At</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item) => (
+                    <tr key={item.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800">
+                      <td className="border p-3 text-zinc-800 dark:text-zinc-200">{item.id}</td>
+                      <td className="border p-3 text-zinc-800 dark:text-zinc-200">
+                        {item.description ?? "-"}
+                      </td>
+                      <td className="border p-3 text-zinc-800 dark:text-zinc-200">
+                        {item.created_at.toLocaleString()}
+                      </td>
+                      <td className="border p-3 text-zinc-800 dark:text-zinc-200">
+                        {item.updated_at ? item.updated_at.toLocaleString() : "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </main>
     </div>

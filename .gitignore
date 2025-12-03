@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+#Environment
+.env.local
+
+# Google Cloud service account key
+/gcp/capstone-sa.json
