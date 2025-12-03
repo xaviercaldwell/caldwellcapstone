@@ -53,10 +53,10 @@ export default function Home() {
               login
             </a>{" "}
             or{" "}
-            <a href="/signup" className="font-medium text-zinc-950 dark:text-zinc-50">
+            <a href="/login" className="font-medium text-zinc-950 dark:text-zinc-50">
               sign up
             </a>{" "}
-            with an email.
+            with an email and password.
           </p>
 
           <h2 className="text-2xl font-semibold mt-10 text-black dark:text-zinc-50">
